@@ -46,6 +46,8 @@ const DEFAULTS: Required<Agent37ProcessOptions> = {
 const LOST_FRAMES = 3;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+/** A sleep that does not keep the Node.js process alive on its own. */
+const idle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms).unref?.());
 
 // =============================================================================
 // Process Handle
@@ -140,6 +142,11 @@ export class Agent37ProcessHandle extends ProcessHandle {
     return false;
   }
 
+  /** Mark the process as gone without asking the instance (it was stopped or destroyed). @internal */
+  abandon(reason: string): void {
+    this.#finish(LOST_EXIT_CODE, reason);
+  }
+
   #finish(exitCode: number, reason?: string): void {
     if (this.#exitCode !== undefined) return;
     const tailOut = this.#stdoutDecoder.decode();
@@ -163,7 +170,7 @@ export class Agent37ProcessHandle extends ProcessHandle {
       }
       if (status !== 'running') {
         // Never wake a stopped or sleeping instance just to read output.
-        await sleep(1000);
+        await idle(1000);
         continue;
       }
       try {
@@ -307,6 +314,13 @@ export class Agent37ProcessManager extends SandboxProcessManager<Agent37Sandbox>
       running: handle.exitCode === undefined,
       exitCode: handle.exitCode,
     }));
+  }
+
+  /** Finish every running handle with exit code 137, after a stop or destroy ended their processes. @internal */
+  abandonAll(reason: string): void {
+    for (const handle of this._tracked.values()) {
+      if (handle instanceof Agent37ProcessHandle && handle.exitCode === undefined) handle.abandon(reason);
+    }
   }
 
   /** Stop tracking a process and remove its state directory once it has exited. */

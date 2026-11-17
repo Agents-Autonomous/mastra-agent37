@@ -81,6 +81,8 @@ export interface Agent37SandboxOptions extends Omit<MastraSandboxOptions, 'proce
   execUrl?: string;
   /** Custom fetch implementation (tests, proxies). */
   fetch?: typeof fetch;
+  /** A preconfigured client (shared across sandboxes, custom retries). When set, apiKey, apiUrl, execUrl, and fetch are ignored. */
+  client?: Agent37Client;
   /**
    * Template to create the instance from. Default: agent37-ubuntu when
    * computer use is enabled, otherwise agent37-base. Pin a release with
@@ -213,12 +215,14 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
 
     this.id = options.id ?? 'agent37-sandbox-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     this._options = { ...options };
-    this._client = new Agent37Client({
-      apiKey: options.apiKey,
-      apiUrl: options.apiUrl,
-      execUrl: options.execUrl,
-      fetch: options.fetch,
-    });
+    this._client =
+      options.client ??
+      new Agent37Client({
+        apiKey: options.apiKey,
+        apiUrl: options.apiUrl,
+        execUrl: options.execUrl,
+        fetch: options.fetch,
+      });
     this.template = options.template ?? (options.computer ? 'agent37-ubuntu' : 'agent37-base');
     this.instanceType = options.type ?? (VM_ONLY_TEMPLATES.has(this.template.split('@')[0]!) ? 'vm' : undefined);
     this.user = options.user;
@@ -337,6 +341,8 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
     const id = this._instance?.id ?? (await this.lookupInstance().catch(() => undefined))?.id;
     this._instance = null;
     this.computer?.reset();
+    // A stop ends every process; a sleep checkpoints them and they resume on the next start.
+    if (this.stopMode === 'stop') this.processes.abandonAll('the instance was stopped');
     if (!id) return;
     try {
       if (this.stopMode === 'stop') {
@@ -355,6 +361,7 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
   async destroy(): Promise<void> {
     const id = this._instance?.id ?? (await this.lookupInstance())?.id;
     if (id) await this._client.deleteInstance(id);
+    this.processes.abandonAll('the sandbox was destroyed');
     this._instance = null;
     this._instanceId = undefined;
     this.computer?.reset();

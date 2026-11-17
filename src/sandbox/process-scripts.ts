@@ -15,7 +15,7 @@
  *   base64, so output streams to the host with one exec per batch.
  * - stdin (when piped) is a FIFO held open by a holder process; `sendStdin`
  *   writes into the FIFO and `closeStdin` kills the holder to deliver EOF.
- * - `kill` signals the whole process group: SIGTERM, then SIGKILL.
+ * - `kill` signals the whole process group: SIGTERM, then SIGKILL after ~2s.
  *
  * Every script prints at most a bounded amount of output, which keeps each
  * exec response well under Agent37's 512 KB stdout cap.
@@ -60,7 +60,7 @@ export function runnerScript({ command, cwd, env }: RunnerOptions): string {
 
 /**
  * The wrapper runs detached as `setsid sh w.sh DIR MODE`. It starts the
- * runner as its own session (so `kill -- -PID` reaches the whole tree),
+ * runner as its own session (so `kill -PID` reaches the whole tree),
  * records the pid, waits, and writes the exit code atomically.
  */
 const WRAPPER_SCRIPT = [
@@ -157,9 +157,10 @@ export function killScript(handleId: string): string {
     `pid=$(cat "$D/pid" 2>/dev/null) || exit ${SCRIPT_EXIT.notRunning}`,
     `[ -f "$D/exit" ] && exit ${SCRIPT_EXIT.notRunning}`,
     `kill -0 "$pid" 2>/dev/null || exit ${SCRIPT_EXIT.notRunning}`,
-    'kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null',
+    // dash's kill builtin rejects '--', so the group is addressed as a bare negative pid.
+    'kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null',
     'i=0; while kill -0 "$pid" 2>/dev/null && [ $i -lt 40 ]; do sleep 0.05; i=$((i+1)); done',
-    'kill -KILL -- "-$pid" 2>/dev/null; kill -KILL "$pid" 2>/dev/null',
+    'kill -KILL "-$pid" 2>/dev/null; kill -KILL "$pid" 2>/dev/null',
     'i=0; while [ ! -f "$D/exit" ] && [ $i -lt 40 ]; do sleep 0.05; i=$((i+1)); done',
     'exit 0',
   ].join('\n');
