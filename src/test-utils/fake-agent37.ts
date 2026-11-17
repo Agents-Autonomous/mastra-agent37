@@ -6,6 +6,9 @@
  */
 
 import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Agent37ExecParams, Agent37ExecResult, Agent37Instance } from '../client/types';
 
@@ -29,14 +32,25 @@ interface InjectedFailure {
   times: number;
 }
 
-/** Run a script in the local shell, like Agent37's exec (`sh -c`). */
-export function localExec(params: Agent37ExecParams): Promise<Agent37ExecResult> {
-  return new Promise(resolve => {
-    execFile('sh', ['-c', params.command], { maxBuffer: 64 * 1024 * 1024, encoding: 'utf-8' }, (error, stdout, stderr) => {
-      const code = error ? (typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : 1) : 0;
-      resolve({ exit_code: code, stdout, stderr, truncated: false });
+/**
+ * Run a script in the local shell, like Agent37's exec. The script goes
+ * through a temp file because Linux caps a single argv string at 128 KB,
+ * while Agent37 accepts scripts up to its 1 MB request limit.
+ */
+export async function localExec(params: Agent37ExecParams): Promise<Agent37ExecResult> {
+  const dir = await mkdtemp(join(tmpdir(), 'fake-agent37-'));
+  const script = join(dir, 'script.sh');
+  await writeFile(script, params.command);
+  try {
+    return await new Promise(resolve => {
+      execFile('sh', [script], { maxBuffer: 64 * 1024 * 1024, encoding: 'utf-8' }, (error, stdout, stderr) => {
+        const code = error ? (typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : 1) : 0;
+        resolve({ exit_code: code, stdout, stderr, truncated: false });
+      });
     });
-  });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 let idCounter = 0;

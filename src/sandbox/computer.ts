@@ -120,9 +120,17 @@ export function toKeysym(key: string): string {
  * between keys ('ctrl+s') is a chord, like an array (['ctrl', 's']).
  */
 export function toXdotoolChord(key: string | string[]): string {
-  const parts = Array.isArray(key) ? key : key.length > 1 && key.includes('+') ? key.split('+').filter(Boolean) : [key];
+  const parts = Array.isArray(key) ? key : splitChord(key);
   if (parts.length === 0) throw new Error('press() needs at least one key');
   return parts.map(toKeysym).join('+');
+}
+
+/** Split 'ctrl+s' into keys; a trailing '+' after a separator is the plus key ('ctrl++'). */
+function splitChord(key: string): string[] {
+  if (key.length <= 1 || !key.includes('+')) return [key];
+  const plus = key.endsWith('++');
+  const keys = (plus ? key.slice(0, -2) : key).split('+').filter(Boolean);
+  return plus ? [...keys, '+'] : keys;
 }
 
 /** Round a coordinate to a non-negative integer pixel. */
