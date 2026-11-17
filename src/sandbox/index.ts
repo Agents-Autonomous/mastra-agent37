@@ -12,6 +12,8 @@
  */
 
 import type {
+  CommandResult,
+  ExecuteCommandOptions,
   MastraSandboxOptions,
   ProviderStatus,
   SandboxCloneOptions,
@@ -168,6 +170,12 @@ export interface RunScriptOptions {
  * const { data } = await sandbox.computer.screenshot();
  * ```
  */
+// MastraSandbox always installs executeCommand when a process manager is present (as it is here), so the type says so.
+// oxlint-disable-next-line typescript/no-unsafe-declaration-merging
+export interface Agent37Sandbox {
+  executeCommand(command: string, args?: string[], options?: ExecuteCommandOptions): Promise<CommandResult>;
+}
+
 export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
   readonly id: string;
   readonly name = 'Agent37Sandbox';

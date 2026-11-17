@@ -22,7 +22,12 @@
     ],
     "types": [
       "node"
-    ]
+    ],
+    "paths": {
+      "@mastra/agent37": [
+        "./src/index.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*",

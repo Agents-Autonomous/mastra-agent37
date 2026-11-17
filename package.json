@@ -28,7 +28,9 @@
     "lint": "oxlint --deny-warnings src examples",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "sweep:test-instances": "tsx scripts/sweep-test-instances.ts"
+    "sweep:test-instances": "tsx scripts/sweep-test-instances.ts",
+    "example": "tsx",
+    "example:in-agent37": "tsx scripts/run-example-in-agent37.ts"
   },
   "keywords": [
     "mastra",
