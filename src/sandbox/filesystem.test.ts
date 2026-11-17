@@ -30,6 +30,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Agent37Client } from '../client';
 import { FakeAgent37, localExec } from '../test-utils/fake-agent37';
+import { describeLocalShell } from '../test-utils/local-shell';
 import { READ_CHUNK_BYTES, WRITE_CHUNK_BYTES } from './filesystem';
 import { Agent37Sandbox } from './index';
 
@@ -49,7 +50,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-describe('Agent37Filesystem', () => {
+describeLocalShell('Agent37Filesystem', () => {
   it('identifies itself', () => {
     const fs = sandbox.filesystem;
     expect(fs.provider).toBe('agent37');

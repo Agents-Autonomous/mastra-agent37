@@ -22,7 +22,19 @@ pnpm test:unit
 pnpm build
 ```
 
-Unit tests need no network or credentials. `src/test-utils/fake-agent37.ts` serves an in-memory Agent37 API through the client's `fetch` option and runs exec scripts in a local `sh`, so the process, filesystem, and stdin scripts are tested for real. The process tests need Linux with `setsid`, `mkfifo`, and `timeout` (util-linux and coreutils), and skip elsewhere.
+Unit tests need no network or credentials. `src/test-utils/fake-agent37.ts` serves an in-memory Agent37 API through the client's `fetch` option and runs exec scripts in a local `sh`, so the process, filesystem, and stdin scripts are tested for real.
+
+Those scripts are written for Agent37's Linux instances, so the filesystem and process tests need GNU coreutils (`stat -c`, `timeout`), GNU findutils (`find -printf`), and util-linux (`setsid`). Linux distributions ship them. When any are missing, `src/test-utils/local-shell.ts` skips those two suites with a warning that names the missing tools; under CI (`CI` set) it fails them instead, so a runner without the tools cannot pass silently.
+
+### macOS
+
+Install the GNU tools with [Homebrew](https://brew.sh):
+
+```bash
+brew install coreutils findutils util-linux
+```
+
+You don't need to change your `PATH`: on macOS the test harness puts Homebrew's `gnubin` directories and util-linux's `bin` first on the `PATH` of the scripts it runs (it looks under `$HOMEBREW_PREFIX`, `/opt/homebrew`, and `/usr/local`), and leaves the rest of your shell alone. CI runs lint, typecheck, and unit tests on `macos-latest` too.
 
 ## Live tests
 

@@ -1,5 +1,11 @@
 # @agentsautonomous.ai/mastra-agent37
 
+## Unreleased
+
+### Internal
+
+- Unit tests run on macOS: the test harness uses Homebrew's GNU coreutils, findutils, and util-linux for the instance scripts, and skips those suites with a warning that names the missing tools (or fails them under CI). CI adds a `macos-latest` job for lint, typecheck, and unit tests. No change to the published package.
+
 ## 0.1.0
 
 ### Minor Changes
