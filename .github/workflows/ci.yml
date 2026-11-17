@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - run: pnpm build
+
+  integration:
+    name: Integration (live Agent37)
+    needs: check
+    # Secrets are unavailable to pull requests from forks, and the suite spends credit:
+    # run on main and on manual dispatch only.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AGENT37_API_KEY: ${{ secrets.AGENT37_API_KEY }}
+    concurrency:
+      group: agent37-integration
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Integration tests
+        if: env.AGENT37_API_KEY != ''
+        run: pnpm test
+      - name: Skip notice
+        if: env.AGENT37_API_KEY == ''
+        run: echo "AGENT37_API_KEY secret is not set; skipping live tests."
+      - name: Sweep leaked test instances
+        if: always() && env.AGENT37_API_KEY != ''
+        run: pnpm sweep:test-instances
