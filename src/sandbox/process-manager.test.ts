@@ -1,25 +1,15 @@
 /**
  * Process manager tests. The fake Agent37 runs exec scripts in the local
- * shell, so the spawn, poll, stdin, and kill scripts run for real (Linux
- * with util-linux setsid is required; the suite skips elsewhere).
+ * shell, so the spawn, poll, stdin, and kill scripts run for real (see
+ * test-utils/local-shell for the tools they need).
  */
-import { execFileSync } from 'node:child_process';
-
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
 import { Agent37Client } from '../client';
 import { FakeAgent37, localExec } from '../test-utils/fake-agent37';
+import { describeLocalShell } from '../test-utils/local-shell';
 import { Agent37Sandbox } from './index';
 import type { Agent37ProcessHandle } from './process-manager';
-
-const hasSetsid = (() => {
-  try {
-    execFileSync('sh', ['-c', 'command -v setsid && command -v mkfifo && command -v timeout']);
-    return true;
-  } catch {
-    return false;
-  }
-})();
 
 function setup(processes = { quickWaitMs: 300, pollWindowMs: 500 }) {
   const fake = new FakeAgent37();
@@ -28,7 +18,7 @@ function setup(processes = { quickWaitMs: 300, pollWindowMs: 500 }) {
   return { fake, sandbox };
 }
 
-describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
+describeLocalShell('Agent37ProcessManager (local shell)', () => {
   it('runs commands through executeCommand with quoted args', async () => {
     const { sandbox } = setup();
     const result = await sandbox.executeCommand!('printf', ['%s|%s', "it's", 'a b']);

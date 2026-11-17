@@ -1,8 +1,8 @@
 /**
  * An in-memory fake of the Agent37 Cloud API for unit tests, served through
  * the client's `fetch` option. Instances live in a Map; exec runs the script
- * in a local `sh` (so process and filesystem scripts are tested for real)
- * unless a test installs its own exec handler.
+ * in a local `sh` (so process and filesystem scripts are tested for real;
+ * see ./local-shell) unless a test installs its own exec handler.
  */
 
 import { execFile } from 'node:child_process';
@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { Agent37ExecParams, Agent37ExecResult, Agent37Instance } from '../client/types';
+import { localShellEnv } from './local-shell';
 
 export type ExecHandler = (
   instanceId: string,
@@ -43,14 +44,19 @@ export async function localExec(params: Agent37ExecParams): Promise<Agent37ExecR
   await writeFile(script, params.command);
   try {
     return await new Promise(resolve => {
-      execFile('sh', [script], { maxBuffer: 64 * 1024 * 1024, encoding: 'utf-8' }, (error, stdout, stderr) => {
-        const code = error
-          ? typeof (error as { code?: unknown }).code === 'number'
-            ? (error as { code: number }).code
-            : 1
-          : 0;
-        resolve({ exit_code: code, stdout, stderr, truncated: false });
-      });
+      execFile(
+        'sh',
+        [script],
+        { env: localShellEnv, maxBuffer: 64 * 1024 * 1024, encoding: 'utf-8' },
+        (error, stdout, stderr) => {
+          const code = error
+            ? typeof (error as { code?: unknown }).code === 'number'
+              ? (error as { code: number }).code
+              : 1
+            : 0;
+          resolve({ exit_code: code, stdout, stderr, truncated: false });
+        },
+      );
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
