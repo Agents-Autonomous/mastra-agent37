@@ -93,7 +93,8 @@ export class Agent37ProcessHandle extends ProcessHandle {
     this.applyFrame(frame);
     if (this.#exitCode === undefined) {
       if (this.#timeout) {
-        this.#timer = setTimeout(() => void this.#onTimeout(), this.#timeout);
+        // The deadline counts from the spawn request, so time spent in the spawn's initial wait is included.
+        this.#timer = setTimeout(() => void this.#onTimeout(), Math.max(0, this.#timeout - (Date.now() - startTime)));
         this.#timer.unref?.();
       }
       void this.#pollLoop();
@@ -182,8 +183,8 @@ export class Agent37ProcessHandle extends ProcessHandle {
         failures = 0;
       } catch (error) {
         failures += 1;
-        if (this.#manager.sandbox.isInstanceGoneError(error)) {
-          this.#finish(LOST_EXIT_CODE, 'the Agent37 instance no longer exists');
+        if (await this.#manager.sandbox.isInstanceHaltedError(error)) {
+          this.#finish(LOST_EXIT_CODE, 'the Agent37 instance was stopped or deleted');
           return;
         }
         await sleep(Math.min(30_000, 500 * 2 ** Math.min(failures, 6)));
@@ -301,7 +302,7 @@ export class Agent37ProcessManager extends SandboxProcessManager<Agent37Sandbox>
         cwd: options.cwd ?? this.sandbox.workingDirectory,
         env: options.env,
         stdin: options.stdinMode ?? 'pipe',
-        quickWaitMs: this.options.quickWaitMs,
+        quickWaitMs: Math.min(this.options.quickWaitMs, options.timeout ?? Infinity),
       }),
       // The name makes a resend after a dropped connection return this spawn's result instead of starting a second copy.
       { name: `mastra-spawn-${handleId}` },

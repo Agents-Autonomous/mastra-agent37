@@ -55,6 +55,8 @@ const VM_ONLY_TEMPLATES = new Set(['agent37-ubuntu', 'agent37-android']);
 const TRANSITIONAL: Agent37InstanceStatus[] = ['provisioning', 'starting', 'restarting', 'updating', 'waking'];
 /** Statuses that mean the instance is gone or going. */
 const GONE: Agent37InstanceStatus[] = ['deleting', 'deleted'];
+/** States in which no process on the instance is running. */
+const HALTED: Agent37InstanceStatus[] = ['stopping', 'stopped', 'failed', ...GONE];
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 const READY_TIMEOUT_MS = 15 * 60_000;
@@ -489,6 +491,22 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
   /** True when an error means the Agent37 instance no longer exists. */
   isInstanceGoneError(error: unknown): boolean {
     return error instanceof Agent37ApiError && error.isNotFound;
+  }
+
+  /**
+   * True when an error means the instance is gone or halted (deleted, stopped, or failed), so processes on it
+   * have ended. Transitional states (starting, waking) do not count. @internal
+   */
+  async isInstanceHaltedError(error: unknown): Promise<boolean> {
+    if (!(error instanceof Agent37ApiError)) return false;
+    if (error.isNotFound) return true;
+    if (error.status !== 400 || !this.instanceId) return false;
+    try {
+      const current = await this._client.getInstance(this.instanceId);
+      return HALTED.includes(current.status);
+    } catch (lookupError) {
+      return lookupError instanceof Agent37ApiError && lookupError.isNotFound;
+    }
   }
 
   /**

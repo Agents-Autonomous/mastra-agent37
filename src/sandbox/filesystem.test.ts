@@ -2,7 +2,17 @@
  * Filesystem tests. The fake Agent37 runs exec scripts in the local shell, so
  * every file script runs for real against a temp directory.
  */
-import { mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+  mkdirSync,
+  chmodSync,
+  utimesSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -14,11 +24,12 @@ import {
   IsDirectoryError,
   NotDirectoryError,
   PermissionError,
+  StaleFileError,
 } from '@mastra/core/workspace';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Agent37Client } from '../client';
-import { FakeAgent37 } from '../test-utils/fake-agent37';
+import { FakeAgent37, localExec } from '../test-utils/fake-agent37';
 import { READ_CHUNK_BYTES, WRITE_CHUNK_BYTES } from './filesystem';
 import { Agent37Sandbox } from './index';
 
@@ -132,6 +143,42 @@ describe('Agent37Filesystem', () => {
       await sandbox.filesystem.writeFile(relative, 'r');
       expect(readFileSync(p('rel.txt'), 'utf-8')).toBe('r');
     });
+
+    it('rejects a write whose expectedMtime no longer matches the file', async () => {
+      writeFileSync(p('doc.md'), 'v1');
+      const read = await sandbox.filesystem.stat(p('doc.md'));
+      await sandbox.filesystem.writeFile(p('doc.md'), 'v2', { expectedMtime: read.modifiedAt });
+      expect(readFileSync(p('doc.md'), 'utf-8')).toBe('v2');
+
+      const later = new Date(read.modifiedAt.getTime() + 60_000);
+      utimesSync(p('doc.md'), later, later);
+      const error = await sandbox.filesystem
+        .writeFile(p('doc.md'), 'v3', { expectedMtime: read.modifiedAt })
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(StaleFileError);
+      expect((error as StaleFileError).actualMtime.getTime()).toBe(later.getTime());
+      expect(readFileSync(p('doc.md'), 'utf-8')).toBe('v2');
+
+      await sandbox.filesystem.writeFile(p('new.md'), 'fresh', { expectedMtime: read.modifiedAt });
+      expect(readFileSync(p('new.md'), 'utf-8')).toBe('fresh');
+    });
+
+    it('fails a chunked upload whose staged chunks were lost instead of publishing a partial file', async () => {
+      const big = Buffer.alloc(WRITE_CHUNK_BYTES * 2 + 1, 7);
+      let appends = 0;
+      fake.execHandler = async (_id, params) => {
+        if (params.command.includes('>> "$tmp"') && appends++ === 0) {
+          await localExec({ command: `rm -f ${dir}/.big.bin.mastra-tmp-*` });
+        }
+        return localExec(params);
+      };
+      await expect(sandbox.filesystem.writeFile(p('big.bin'), big)).rejects.toThrow(
+        /interrupted by an instance restart/,
+      );
+      expect(await sandbox.filesystem.exists(p('big.bin'))).toBe(false);
+      const chunkCalls = fake.callsTo('POST', /exec$/).filter(c => String(c.body.command).includes('>> "$tmp"'));
+      expect(chunkCalls.length).toBeGreaterThan(0);
+    }, 60_000);
 
     it('cleans up the temp file when a chunked upload fails', async () => {
       const big = Buffer.alloc(WRITE_CHUNK_BYTES * 2 + 1, 1);

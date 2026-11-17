@@ -76,6 +76,55 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
     expect(result).toMatchObject({ success: false, exitCode: 124, timedOut: true, killed: true });
   });
 
+  it('counts the initial spawn wait against the timeout', async () => {
+    const { sandbox } = setup({ quickWaitMs: 1000, pollWindowMs: 500 });
+    const result = await sandbox.executeCommand('sleep 0.6; echo late', [], { timeout: 200 });
+    expect(result).toMatchObject({ timedOut: true, exitCode: 124 });
+    expect(result.stdout).toBe('');
+  });
+
+  it('does not leave environment values on disk', async () => {
+    const { sandbox } = setup();
+    const handle = (await sandbox.processes.spawn('echo "$SECRET_TOKEN"; sleep 5', {
+      env: { SECRET_TOKEN: 'tok-' + 'xyz123' },
+    })) as Agent37ProcessHandle;
+    await new Promise(r => setTimeout(r, 300));
+    expect((await sandbox.processes.get(handle.pid))?.stdout).toBe('tok-xyz123\n');
+    const dir = '/tmp/.mastra-agent37/proc/' + handle.handleId;
+    const leaked = await localExec({ command: `grep -rl "tok-xyz123" ${dir} 2>/dev/null | grep -v "/out" || true` });
+    expect(leaked.stdout.trim()).toBe('');
+    const mode = await localExec({ command: `stat -c %a ${dir}` });
+    expect(mode.stdout.trim()).toBe('700');
+    await handle.kill();
+  });
+
+  it('finishes processes when the instance is stopped outside this sandbox', async () => {
+    const { fake, sandbox } = setup();
+    const handle = await sandbox.processes.spawn('sleep 30');
+    fake.instances.get(sandbox.instanceId!)!.status = 'stopped';
+    const result = await handle.wait();
+    expect(result.exitCode).toBe(137);
+    expect(result.stderr).toContain('stopped or deleted');
+    await localExec({ command: `kill -9 -${handle.pid} 2>/dev/null; true` });
+  });
+
+  it('cleans up only state of processes that finished more than a day ago', async () => {
+    const { sandbox } = setup();
+    const root = '/tmp/.mastra-agent37/proc';
+    await localExec({
+      command: [
+        `mkdir -p ${root}/oldfinished ${root}/oldrunning`,
+        `echo 0 > ${root}/oldfinished/exit; echo 1 > ${root}/oldrunning/pid`,
+        `touch -d '2 days ago' ${root}/oldfinished/exit ${root}/oldfinished ${root}/oldrunning/pid ${root}/oldrunning`,
+      ].join('; '),
+    });
+    await sandbox.executeCommand('true');
+    const left = await localExec({ command: `ls ${root}` });
+    expect(left.stdout).not.toContain('oldfinished');
+    expect(left.stdout).toContain('oldrunning');
+    await localExec({ command: `rm -rf ${root}/oldrunning` });
+  });
+
   it('applies the sandbox default timeout', async () => {
     const fake = new FakeAgent37();
     const client = new Agent37Client({ apiKey: 'k', fetch: fake.fetch });

@@ -48,14 +48,23 @@ export interface RunnerOptions {
   env?: Record<string, string | undefined>;
 }
 
-/** The runner script: change into `cwd`, then exec the command through `sh -c` with the merged environment. */
-export function runnerScript({ command, cwd, env }: RunnerOptions): string {
-  const lines: string[] = [];
+/**
+ * The runner script: load and delete the env file (so environment values,
+ * which may be credentials, do not stay on disk), change into `cwd`, then
+ * exec the command through `sh -c`.
+ */
+export function runnerScript({ command, cwd }: RunnerOptions): string {
+  const lines = ['E="${0%/*}/env"; if [ -f "$E" ]; then . "$E"; rm -f "$E"; fi'];
   if (cwd) lines.push(`cd ${shellQuote(cwd)} || exit 1`);
-  const assignments = envAssignments(env);
-  const envPrefix = assignments.length ? `env ${assignments.join(' ')} ` : '';
-  lines.push(`exec ${envPrefix}sh -c ${shellQuote(command)}`);
+  lines.push(`exec sh -c ${shellQuote(command)}`);
   return lines.join('\n') + '\n';
+}
+
+/** The env file the runner sources: one `export 'NAME=value'` line per variable. */
+export function envFile(env: RunnerOptions['env']): string {
+  return envAssignments(env)
+    .map(assignment => `export ${assignment}\n`)
+    .join('');
 }
 
 /**
@@ -110,14 +119,19 @@ export interface SpawnScriptOptions extends RunnerOptions {
 export function spawnScript(options: SpawnScriptOptions): string {
   const dir = processDir(options.handleId);
   const runner = Buffer.from(runnerScript(options)).toString('base64');
+  const env = envFile(options.env);
   const wrapper = Buffer.from(WRAPPER_SCRIPT).toString('base64');
   const quickTicks = Math.max(0, Math.ceil(options.quickWaitMs / 50));
   return [
     `D=${shellQuote(dir)}; O=0; E=0`,
     'if [ ! -e "$D/pid" ]; then',
     `  mkdir -p ${shellQuote(PROCESS_ROOT)} && chmod 1777 ${shellQuote(posix.dirname(PROCESS_ROOT))} ${shellQuote(PROCESS_ROOT)} 2>/dev/null`,
-    `  find ${shellQuote(PROCESS_ROOT)} -mindepth 1 -maxdepth 1 -mmin +1440 -exec rm -rf {} + 2>/dev/null`,
-    `  mkdir -p "$D" || exit ${SCRIPT_EXIT.startFailed}`,
+    // Remove state of processes that finished more than a day ago; a running process has no exit file.
+    `  find ${shellQuote(PROCESS_ROOT)} -mindepth 2 -maxdepth 2 -name exit -mmin +1440 2>/dev/null | while read -r f; do rm -rf "\${f%/exit}"; done`,
+    `  (umask 077; mkdir -p "$D") || exit ${SCRIPT_EXIT.startFailed}`,
+    ...(env
+      ? [`  (umask 077; printf %s ${shellQuote(Buffer.from(env).toString('base64'))} | base64 -d > "$D/env")`]
+      : []),
     `  printf %s ${shellQuote(runner)} | base64 -d > "$D/run.sh"`,
     `  printf %s ${shellQuote(wrapper)} | base64 -d > "$D/w.sh"`,
     '  : > "$D/out"; : > "$D/err"',

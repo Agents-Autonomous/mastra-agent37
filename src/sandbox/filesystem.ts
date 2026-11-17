@@ -34,6 +34,7 @@ import {
   MastraFilesystem,
   NotDirectoryError,
   PermissionError,
+  StaleFileError,
   getMimeType,
 } from '@mastra/core/workspace';
 
@@ -50,6 +51,8 @@ export const FS_EXIT = {
   permission: 25,
   parentNotFound: 26,
   notEmpty: 27,
+  stale: 28,
+  uploadLost: 29,
 } as const;
 
 /** Raw bytes per read chunk: base64 of this stays under exec's 512 KB stdout cap. */
@@ -75,7 +78,7 @@ function matchesExtension(name: string, extension: ListOptions['extension']): bo
   return wanted.some(e => e === ext || e === ext.slice(1) || `.${e}` === ext);
 }
 
-type ErrorMap = Partial<Record<keyof typeof FS_EXIT, () => Error>>;
+type ErrorMap = Partial<Record<keyof typeof FS_EXIT, (stderr: string) => Error>>;
 
 /** The disk of an Agent37 instance, as a Mastra {@link MastraFilesystem}. */
 export class Agent37Filesystem extends MastraFilesystem {
@@ -201,6 +204,10 @@ export class Agent37Filesystem extends MastraFilesystem {
         ? `[ -e "$parent" ] || exit ${FS_EXIT.parentNotFound}; [ -d "$parent" ] || exit ${FS_EXIT.notDirectory}`
         : `mkdir -p "$parent" 2>/dev/null || { [ -e "$parent" ] && exit ${FS_EXIT.notDirectory}; exit 1; }`,
       options?.overwrite === false ? `${present('dest')} && exit ${FS_EXIT.exists}` : ':',
+      // Reject the write when the file changed since the caller read it (mtime is compared in whole seconds, like stat()).
+      options?.expectedMtime
+        ? `if [ -e "$dest" ]; then m=$(stat -L -c %Y "$dest"); [ "$m" = ${Math.floor(options.expectedMtime.getTime() / 1000)} ] || { echo "$m" >&2; exit ${FS_EXIT.stale}; }; fi`
+        : ':',
     ];
     const publish =
       options?.overwrite === false
@@ -215,6 +222,8 @@ export class Agent37Filesystem extends MastraFilesystem {
       exists: () => new FileExistsError(path),
       notDirectory: () => new NotDirectoryError(posix.dirname(path)),
       parentNotFound: () => new DirectoryNotFoundError(posix.dirname(path)),
+      stale: stderr =>
+        new StaleFileError(path, options?.expectedMtime ?? new Date(0), new Date(Number(stderr.trim()) * 1000)),
     };
     await this.#upload('writeFile', abs, tmp, bytes, prepare, publish, errors);
   }
@@ -357,7 +366,7 @@ export class Agent37Filesystem extends MastraFilesystem {
   #toError(operation: string, subject: string, exitCode: number, stderr: string, errors: ErrorMap): Error {
     for (const [outcome, code] of Object.entries(FS_EXIT)) {
       const toError = errors[outcome as keyof typeof FS_EXIT];
-      if (code === exitCode && toError) return toError();
+      if (code === exitCode && toError) return toError(stderr);
     }
     return new Error(`${operation} ${subject} failed (exit ${exitCode}): ${stderr.trim()}`);
   }
@@ -424,23 +433,39 @@ export class Agent37Filesystem extends MastraFilesystem {
       chunks.push(bytes.subarray(start, start + WRITE_CHUNK_BYTES));
     }
     if (chunks.length === 0) chunks.push(Buffer.alloc(0));
+    // An append to a missing temp file means the staged chunks were lost (the instance was replaced mid-transfer).
     const writeChunk = (chunk: Buffer, append: boolean) =>
+      (append ? `[ -f "$tmp" ] || exit ${FS_EXIT.uploadLost}; ` : '') +
       `printf %s ${shellQuote(chunk.toString('base64'))} | base64 -d ${append ? '>>' : '>'} "$tmp" || { rm -f "$tmp"; exit 1; }`;
+    const allErrors: ErrorMap = {
+      ...errors,
+      uploadLost: () =>
+        new Error(`${operation} ${path} failed: the upload was interrupted by an instance restart; retry the write`),
+    };
 
-    const run = async (lines: string[]) => {
-      const result = await this.#sandbox.runScript(lines.join('\n'));
-      if (result.exit_code !== 0) throw this.#toError(operation, path, result.exit_code, result.stderr, errors);
+    // Only the first exec may re-acquire a lost instance; later chunks must land on the instance that holds the staged ones.
+    const run = async (lines: string[], retryOnDead: boolean) => {
+      const result = await this.#sandbox.runScript(lines.join('\n'), { retryOnDead });
+      if (result.exit_code !== 0) throw this.#toError(operation, path, result.exit_code, result.stderr, allErrors);
     };
 
     if (chunks.length === 1) {
-      await run([...prepare, writeChunk(chunks[0]!, false), ...publish]);
+      await run([...prepare, writeChunk(chunks[0]!, false), ...publish], true);
       return;
     }
     const tmpVar = `tmp=${shellQuote(tmp)}`;
     try {
-      await run([...prepare, writeChunk(chunks[0]!, false)]);
-      for (const chunk of chunks.slice(1, -1)) await run([tmpVar, writeChunk(chunk, true)]);
-      await run([...prepare, writeChunk(chunks[chunks.length - 1]!, true), ...publish]);
+      await run([...prepare, writeChunk(chunks[0]!, false)], true);
+      for (const chunk of chunks.slice(1, -1)) await run([tmpVar, writeChunk(chunk, true)], false);
+      await run(
+        [
+          ...prepare,
+          writeChunk(chunks[chunks.length - 1]!, true),
+          `[ "$(wc -c <"$tmp")" -eq ${bytes.length} ] || { rm -f "$tmp"; exit ${FS_EXIT.uploadLost}; }`,
+          ...publish,
+        ],
+        false,
+      );
     } catch (error) {
       await this.#sandbox.runScript(`rm -f ${shellQuote(tmp)}`).catch(() => {});
       throw error;
