@@ -156,8 +156,20 @@ describe('Agent37Filesystem', () => {
         .writeFile(p('doc.md'), 'v3', { expectedMtime: read.modifiedAt })
         .catch((e: unknown) => e);
       expect(error).toBeInstanceOf(StaleFileError);
-      expect((error as StaleFileError).actualMtime.getTime()).toBe(later.getTime());
+      // utimes takes float seconds, so the stored mtime can be a fraction of a millisecond below `later`.
+      expect(Math.abs((error as StaleFileError).actualMtime.getTime() - later.getTime())).toBeLessThanOrEqual(1);
       expect(readFileSync(p('doc.md'), 'utf-8')).toBe('v2');
+
+      const current = await sandbox.filesystem.stat(p('doc.md'));
+      const sameSecond = new Date(
+        Math.floor(current.modifiedAt.getTime() / 1000) * 1000 +
+          (current.modifiedAt.getMilliseconds() === 500 ? 600 : 500),
+      );
+      utimesSync(p('doc.md'), sameSecond, sameSecond);
+      await expect(
+        sandbox.filesystem.writeFile(p('doc.md'), 'v4', { expectedMtime: current.modifiedAt }),
+      ).rejects.toBeInstanceOf(StaleFileError);
+      expect(current.modifiedAt.getMilliseconds()).not.toBe(sameSecond.getMilliseconds());
 
       await sandbox.filesystem.writeFile(p('new.md'), 'fresh', { expectedMtime: read.modifiedAt });
       expect(readFileSync(p('new.md'), 'utf-8')).toBe('fresh');

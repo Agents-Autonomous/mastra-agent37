@@ -54,7 +54,8 @@ export interface RunnerOptions {
  * exec the command through `sh -c`.
  */
 export function runnerScript({ command, cwd }: RunnerOptions): string {
-  const lines = ['E="${0%/*}/env"; if [ -f "$E" ]; then . "$E"; rm -f "$E"; fi'];
+  // The path is spelled out each time: a shell variable could be overwritten by a variable the env file sets.
+  const lines = ['if [ -f "${0%/*}/env" ]; then . "${0%/*}/env"; rm -f "${0%/*}/env"; fi'];
   if (cwd) lines.push(`cd ${shellQuote(cwd)} || exit 1`);
   lines.push(`exec sh -c ${shellQuote(command)}`);
   return lines.join('\n') + '\n';
@@ -126,8 +127,8 @@ export function spawnScript(options: SpawnScriptOptions): string {
     `D=${shellQuote(dir)}; O=0; E=0`,
     'if [ ! -e "$D/pid" ]; then',
     `  mkdir -p ${shellQuote(PROCESS_ROOT)} && chmod 1777 ${shellQuote(posix.dirname(PROCESS_ROOT))} ${shellQuote(PROCESS_ROOT)} 2>/dev/null`,
-    // Remove state of processes that finished more than a day ago; a running process has no exit file.
-    `  find ${shellQuote(PROCESS_ROOT)} -mindepth 2 -maxdepth 2 -name exit -mmin +1440 2>/dev/null | while read -r f; do rm -rf "\${f%/exit}"; done`,
+    // Remove state untouched for a day whose process finished or is gone; a live process keeps its directory.
+    `  find ${shellQuote(PROCESS_ROOT)} -mindepth 1 -maxdepth 1 -type d -mmin +1440 2>/dev/null | while read -r d; do { [ -f "$d/exit" ] || ! kill -0 "$(cat "$d/pid" 2>/dev/null)" 2>/dev/null; } && rm -rf "$d"; done`,
     `  (umask 077; mkdir -p "$D") || exit ${SCRIPT_EXIT.startFailed}`,
     ...(env
       ? [`  (umask 077; printf %s ${shellQuote(Buffer.from(env).toString('base64'))} | base64 -d > "$D/env")`]

@@ -63,6 +63,10 @@ export const WRITE_CHUNK_BYTES = 512 * 1024;
 const DEFAULT_MAX_DEPTH = 100;
 
 const toAbsolute = (path: string) => posix.resolve('/', path);
+/** Shell that sets `$m` to the mtime in milliseconds of the file at "$<variable>" (GNU and busybox stat). */
+const mtimeMs = (variable: string) =>
+  `fr=$(stat -L -c %y "$${variable}" | sed -n 's/^[^.]*\\.\\([0-9]\\{3\\}\\).*/\\1/p'); ` +
+  `m="$(stat -L -c %Y "$${variable}")\${fr:-000}"`;
 const present = (variable: string) => `{ [ -e "$${variable}" ] || [ -L "$${variable}" ]; }`;
 const tempSibling = (path: string) =>
   posix.join(posix.dirname(path), `.${posix.basename(path)}.mastra-tmp-${randomId(10)}`);
@@ -132,13 +136,15 @@ export class Agent37Filesystem extends MastraFilesystem {
     const abs = toAbsolute(path);
     const stdout = await this.#command(
       'stat',
-      [`f=${shellQuote(abs)}`, `[ -e "$f" ] || exit ${FS_EXIT.notFound}`, `stat -L -c '%F|%s|%W|%Y' "$f"`].join('\n'),
+      [`f=${shellQuote(abs)}`, `[ -e "$f" ] || exit ${FS_EXIT.notFound}`, `stat -L -c '%F|%s|%W|%Y|%y' "$f"`].join(
+        '\n',
+      ),
       path,
       { notFound: () => new FileNotFoundError(path) },
     );
-    const [kind = '', size = '0', birth = '0', mtime = '0'] = stdout.trim().split('|');
+    const [kind = '', size = '0', birth = '0', mtime = '0', readable = ''] = stdout.trim().split('|');
     const isDir = kind === 'directory';
-    const modifiedAt = new Date(Number(mtime) * 1000);
+    const modifiedAt = new Date(Number(mtime) * 1000 + Number(/^[^.]*\.(\d{3})/.exec(readable)?.[1] ?? 0));
     const born = Number(birth);
     return {
       name: posix.basename(abs),
@@ -204,9 +210,9 @@ export class Agent37Filesystem extends MastraFilesystem {
         ? `[ -e "$parent" ] || exit ${FS_EXIT.parentNotFound}; [ -d "$parent" ] || exit ${FS_EXIT.notDirectory}`
         : `mkdir -p "$parent" 2>/dev/null || { [ -e "$parent" ] && exit ${FS_EXIT.notDirectory}; exit 1; }`,
       options?.overwrite === false ? `${present('dest')} && exit ${FS_EXIT.exists}` : ':',
-      // Reject the write when the file changed since the caller read it (mtime is compared in whole seconds, like stat()).
+      // Reject the write when the file changed since the caller read it (at millisecond precision, like stat()).
       options?.expectedMtime
-        ? `if [ -e "$dest" ]; then m=$(stat -L -c %Y "$dest"); [ "$m" = ${Math.floor(options.expectedMtime.getTime() / 1000)} ] || { echo "$m" >&2; exit ${FS_EXIT.stale}; }; fi`
+        ? `if [ -e "$dest" ]; then ${mtimeMs('dest')}; [ "$m" = ${options.expectedMtime.getTime()} ] || { echo "$m" >&2; exit ${FS_EXIT.stale}; }; fi`
         : ':',
     ];
     const publish =
@@ -222,8 +228,7 @@ export class Agent37Filesystem extends MastraFilesystem {
       exists: () => new FileExistsError(path),
       notDirectory: () => new NotDirectoryError(posix.dirname(path)),
       parentNotFound: () => new DirectoryNotFoundError(posix.dirname(path)),
-      stale: stderr =>
-        new StaleFileError(path, options?.expectedMtime ?? new Date(0), new Date(Number(stderr.trim()) * 1000)),
+      stale: stderr => new StaleFileError(path, options?.expectedMtime ?? new Date(0), new Date(Number(stderr.trim()))),
     };
     await this.#upload('writeFile', abs, tmp, bytes, prepare, publish, errors);
   }

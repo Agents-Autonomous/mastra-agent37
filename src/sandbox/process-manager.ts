@@ -294,6 +294,8 @@ export class Agent37ProcessManager extends SandboxProcessManager<Agent37Sandbox>
 
   async spawn(command: string, options: SpawnProcessOptions = {}): Promise<ProcessHandle> {
     const handleId = randomId(16);
+    // Waking or creating the instance does not count against the command's timeout.
+    await this.sandbox.ensureRunning();
     const startTime = Date.now();
     const result = await this.sandbox.runScript(
       spawnScript({

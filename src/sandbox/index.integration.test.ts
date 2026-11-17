@@ -7,7 +7,7 @@
  * Every instance is tagged mastra_test=1 and destroyed in afterAll; run
  * `pnpm sweep:test-instances` to remove anything a crashed run left behind.
  */
-import { Workspace } from '@mastra/core/workspace';
+import { StaleFileError, Workspace } from '@mastra/core/workspace';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { Agent37Client } from '../client';
@@ -108,6 +108,13 @@ describe.skipIf(!hasKey)('Agent37Sandbox (live)', () => {
       'sub/copy.md',
     ]);
     expect(await fs.stat('/tmp/it/big.bin')).toMatchObject({ type: 'file', size: big.length });
+    const read = await fs.stat('/tmp/it/notes.md');
+    expect(read.modifiedAt.getTime() % 1000).not.toBe(0);
+    await fs.writeFile('/tmp/it/notes.md', 'edited\n', { expectedMtime: read.modifiedAt });
+    await sandbox.executeCommand('sleep 0.05; echo concurrent >> /tmp/it/notes.md');
+    await expect(
+      fs.writeFile('/tmp/it/notes.md', 'stale\n', { expectedMtime: read.modifiedAt }),
+    ).rejects.toBeInstanceOf(StaleFileError);
     await fs.rmdir('/tmp/it', { recursive: true });
     expect(await fs.exists('/tmp/it')).toBe(false);
   }, 120_000);

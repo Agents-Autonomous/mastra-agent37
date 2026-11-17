@@ -83,6 +83,30 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
     expect(result.stdout).toBe('');
   });
 
+  it('does not count waking or creating the instance against the timeout', async () => {
+    const fake = new FakeAgent37();
+    const slowCreate: typeof fetch = async (input, init) => {
+      if (init?.method === 'POST' && String(input).endsWith('/instances')) await new Promise(r => setTimeout(r, 1500));
+      return fake.fetch(input, init);
+    };
+    const client = new Agent37Client({ apiKey: 'k', fetch: slowCreate });
+    const sandbox = new Agent37Sandbox({ client, processes: { quickWaitMs: 100, pollWindowMs: 200 } });
+    const result = await sandbox.executeCommand('sleep 0.3; echo ok', [], { timeout: 1000 });
+    expect(result).toMatchObject({ success: true, stdout: 'ok\n' });
+  });
+
+  it('removes the env file even when the env sets a variable named E', async () => {
+    const { sandbox } = setup();
+    const handle = (await sandbox.processes.spawn('echo "$E"; sleep 5', {
+      env: { E: 'secret-e' },
+    })) as Agent37ProcessHandle;
+    await new Promise(r => setTimeout(r, 300));
+    expect((await sandbox.processes.get(handle.pid))?.stdout).toBe('secret-e\n');
+    const env = await localExec({ command: `test -e /tmp/.mastra-agent37/proc/${handle.handleId}/env; echo $?` });
+    expect(env.stdout.trim()).toBe('1');
+    await handle.kill();
+  });
+
   it('does not leave environment values on disk', async () => {
     const { sandbox } = setup();
     const handle = (await sandbox.processes.spawn('echo "$SECRET_TOKEN"; sleep 5', {
@@ -108,19 +132,21 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
     await localExec({ command: `kill -9 -${handle.pid} 2>/dev/null; true` });
   });
 
-  it('cleans up only state of processes that finished more than a day ago', async () => {
+  it('cleans up day-old state of finished or vanished processes, but not of live ones', async () => {
     const { sandbox } = setup();
     const root = '/tmp/.mastra-agent37/proc';
     await localExec({
       command: [
         `mkdir -p ${root}/oldfinished ${root}/oldrunning`,
-        `echo 0 > ${root}/oldfinished/exit; echo 1 > ${root}/oldrunning/pid`,
-        `touch -d '2 days ago' ${root}/oldfinished/exit ${root}/oldfinished ${root}/oldrunning/pid ${root}/oldrunning`,
+        `mkdir -p ${root}/olddead`,
+        `echo 0 > ${root}/oldfinished/exit; echo ${process.pid} > ${root}/oldrunning/pid; echo 999999 > ${root}/olddead/pid`,
+        `touch -d '2 days ago' ${root}/oldfinished/exit ${root}/oldfinished ${root}/oldrunning/pid ${root}/oldrunning ${root}/olddead`,
       ].join('; '),
     });
     await sandbox.executeCommand('true');
     const left = await localExec({ command: `ls ${root}` });
     expect(left.stdout).not.toContain('oldfinished');
+    expect(left.stdout).not.toContain('olddead');
     expect(left.stdout).toContain('oldrunning');
     await localExec({ command: `rm -rf ${root}/oldrunning` });
   });
