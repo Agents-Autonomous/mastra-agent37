@@ -12,7 +12,9 @@ const id = 'mastra-agent37-example-persistent';
 const sandbox = new Agent37Sandbox({ id, metadata: { mastra_test: '1' } });
 
 if (process.argv.includes('--destroy')) {
-  await sandbox._destroy();
+  // _destroy() is a no-op for a sandbox this process never started, so call the
+  // provider's destroy() directly: it finds the instance by id and deletes it.
+  await sandbox.destroy();
   console.log('Deleted the instance for', id);
   process.exit(0);
 }

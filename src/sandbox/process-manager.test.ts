@@ -126,7 +126,17 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
     const result = await handle.wait();
     expect(result.stdout).toBe('HELLO WORLD\n');
     await expect(handle.sendStdin('late')).rejects.toThrow(/already exited/);
-    await expect(handle.closeStdin()).rejects.toThrow(/already exited/);
+    await expect(handle.closeStdin()).resolves.toBeUndefined();
+  });
+
+  it('treats closing stdin of a process that already exited, or twice, as a no-op', async () => {
+    const { sandbox } = setup();
+    const reader = await sandbox.processes.spawn('read line; echo "got $line"');
+    await reader.sendStdin('one\\n');
+    await new Promise(r => setTimeout(r, 300));
+    await reader.closeStdin();
+    await reader.closeStdin();
+    expect((await reader.wait()).stdout).toBe('got one\\n');
   });
 
   it('supports the writer stream for stdin', async () => {

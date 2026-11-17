@@ -30,7 +30,9 @@ try {
   console.log('exit code', failed.exitCode, 'stderr:', failed.stderr.trim());
 
   await sandbox.executeCommand('for i in 1 2 3; do echo "step $i"; sleep 1; done', [], {
-    onStdout: chunk => process.stdout.write('  streamed: ' + chunk),
+    onStdout: chunk => {
+      for (const line of chunk.split('\n').filter(Boolean)) console.log('  streamed:', line);
+    },
   });
 
   await sandbox.filesystem.writeFile('/tmp/demo/hello.txt', 'Hello from Mastra\n');

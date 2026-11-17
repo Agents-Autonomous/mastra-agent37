@@ -29,8 +29,8 @@ try {
   }
   console.log('Fetched:', body);
 
-  const calculator = await sandbox.processes.spawn('bc -l 2>/dev/null || python3 -i -q 2>&1 || cat');
-  await calculator.sendStdin('6*7\n');
+  const calculator = await sandbox.processes.spawn('read a b; echo $((a * b))');
+  await calculator.sendStdin('6 7\n');
   await calculator.closeStdin();
   console.log('Calculator said:', (await calculator.wait()).stdout.trim());
 

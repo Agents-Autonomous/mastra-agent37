@@ -254,9 +254,11 @@ export class Agent37ProcessHandle extends ProcessHandle {
     }
   }
 
+  /** Signal EOF. Closing the stdin of a process that already exited, or closing it twice, does nothing. */
   async closeStdin(): Promise<void> {
-    if (this.#exitCode !== undefined) throw new Error(`Process ${this.pid} has already exited`);
+    if (this.#exitCode !== undefined) return;
     const result = await this.#manager.sandbox.runScript(closeStdinScript(this.handleId), { retryOnDead: false });
+    if (result.exit_code === SCRIPT_EXIT.notRunning || result.exit_code === SCRIPT_EXIT.stdinClosed) return;
     this.#assertStdinResult(result.exit_code, result.stderr, 'close stdin of');
   }
 
