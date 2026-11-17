@@ -15,14 +15,10 @@ import { Agent } from '@mastra/core/agent';
 import { Workspace } from '@mastra/core/workspace';
 import { Agent37Sandbox } from '@mastra/agent37';
 
-const managed = process.env.AGENT37_LLM_PROXY_URL && process.env.AGENT37_MANAGED_TOKEN;
-const model = managed
-  ? {
-      providerId: 'agent37',
-      modelId: process.env.MODEL ?? 'anthropic/claude-sonnet-4.5',
-      url: process.env.AGENT37_LLM_PROXY_URL,
-      apiKey: process.env.AGENT37_MANAGED_TOKEN,
-    }
+import { agent37ManagedModel } from './agent37-managed-model';
+
+const model = process.env.AGENT37_LLM_PROXY_URL
+  ? agent37ManagedModel(process.env.MODEL ?? 'anthropic/claude-sonnet-4.5')
   : (process.env.MODEL ?? 'anthropic/claude-sonnet-4-5');
 
 const sandbox = new Agent37Sandbox({
@@ -49,7 +45,7 @@ try {
   console.log('Watch live:', await sandbox.computer!.streamUrl());
 
   const result = await agent.generate(
-    'Open a terminal on the desktop (there is a Terminal Emulator icon on the left of the desktop), ' +
+    'Open a terminal on the desktop (the Terminal Emulator icon is on the left of the desktop; desktop icons open with a double-click), ' +
       `run: echo hello-from-mastra > ${proofFile}` +
       ' and press Enter. Then take a screenshot and tell me what the terminal shows.',
     {

@@ -41,6 +41,7 @@ const runnerPackage = {
   type: 'module',
   dependencies: {
     '@mastra/core': pkg.devDependencies['@mastra/core'],
+    '@ai-sdk/openai-compatible': pkg.devDependencies['@ai-sdk/openai-compatible'],
     tsx: pkg.devDependencies.tsx,
     zod: pkg.devDependencies.zod,
   },
