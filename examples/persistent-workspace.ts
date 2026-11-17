@@ -22,7 +22,9 @@ if (process.argv.includes('--destroy')) {
 await sandbox._start();
 console.log('Connected to instance', sandbox.instanceId);
 
-const counter = await sandbox.executeCommand('n=$(cat ~/runs 2>/dev/null || echo 0); n=$((n+1)); echo $n > ~/runs; echo $n');
+const counter = await sandbox.executeCommand(
+  'n=$(cat ~/runs 2>/dev/null || echo 0); n=$((n+1)); echo $n > ~/runs; echo $n',
+);
 console.log('This instance has been used', counter.stdout.trim(), 'time(s)');
 
 // stopMode 'sleep' (the default) checkpoints memory and processes, billing disk only.

@@ -50,7 +50,8 @@ function setup(options: Agent37ComputerOptions | true = true) {
   const client = new Agent37Client({ apiKey: 'k', fetch: fake.fetch, retryBaseDelayMs: 1 });
   const sandbox = new Agent37Sandbox({ client, computer: options });
   const computer = sandbox.computer!;
-  const actions = () => scripts.filter(s => !s.command.includes('need=""')).map(s => s.command.split('\n').slice(1).join('\n'));
+  const actions = () =>
+    scripts.filter(s => !s.command.includes('need=""')).map(s => s.command.split('\n').slice(1).join('\n'));
   return { fake, sandbox, computer, scripts, desktop, actions };
 }
 
@@ -101,7 +102,9 @@ describe('Agent37Computer', () => {
     expect(detection).toContain('displays=:7');
     expect(detection).not.toContain('apt-get');
     expect(detection).toContain('exit ' + COMPUTER_EXIT.toolsMissing);
-    expect(scripts.at(-1)!.command.split('\n')[0]).toBe('export DISPLAY=:7; export XAUTHORITY=/home/ubuntu/.Xauthority');
+    expect(scripts.at(-1)!.command.split('\n')[0]).toBe(
+      'export DISPLAY=:7; export XAUTHORITY=/home/ubuntu/.Xauthority',
+    );
   });
 
   it('sends mouse actions as xdotool commands with rounded, clamped coordinates', async () => {
@@ -127,13 +130,13 @@ describe('Agent37Computer', () => {
 
   it('types text through base64 so any characters survive, and presses keys', async () => {
     const { computer, actions } = setup({ typingDelayMs: 5 });
-    await computer.type("it's $HOME; \"é\"\n");
+    await computer.type('it\'s $HOME; "é"\n');
     await computer.type('');
     await computer.press('ctrl+Enter');
     await computer.press(['alt', 'F4']);
     const [typed, chord, close] = actions();
     const encoded = /printf %s (\S+) \| base64 -d \| xdotool type --clearmodifiers --delay 5 --file -/.exec(typed!);
-    expect(Buffer.from(encoded![1]!, 'base64').toString('utf-8')).toBe("it's $HOME; \"é\"\n");
+    expect(Buffer.from(encoded![1]!, 'base64').toString('utf-8')).toBe('it\'s $HOME; "é"\n');
     expect(chord).toBe('xdotool key --clearmodifiers -- ctrl+Return');
     expect(close).toBe('xdotool key --clearmodifiers -- alt+F4');
     expect(actions()).toHaveLength(3);
@@ -175,7 +178,12 @@ describe('Agent37Computer', () => {
     const { computer, desktop, scripts } = setup();
     desktop.setup = { exit_code: COMPUTER_EXIT.noDisplay, stdout: '', stderr: 'no X display found', truncated: false };
     await expect(computer.leftClick(1, 1)).rejects.toThrow(/no X display found.*agent37-ubuntu/);
-    desktop.setup = { exit_code: COMPUTER_EXIT.installFailed, stdout: '', stderr: 'E: unable to fetch', truncated: false };
+    desktop.setup = {
+      exit_code: COMPUTER_EXIT.installFailed,
+      stdout: '',
+      stderr: 'E: unable to fetch',
+      truncated: false,
+    };
     await expect(computer.leftClick(1, 1)).rejects.toThrow(/outbound network/);
     desktop.setup = ok('DISPLAY=:1\nXAUTHORITY=\n');
     await computer.leftClick(1, 1);

@@ -99,7 +99,9 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
     expect(handle.exitCode).toBeUndefined();
     expect(handle.pid).toMatch(/^\d+$/);
     const listed = await sandbox.processes.list();
-    expect(listed).toEqual([{ pid: handle.pid, command: 'echo started; sleep 30', running: true, exitCode: undefined }]);
+    expect(listed).toEqual([
+      { pid: handle.pid, command: 'echo started; sleep 30', running: true, exitCode: undefined },
+    ]);
     expect((await sandbox.processes.get(handle.pid))?.stdout).toBe('started\n');
     expect(await sandbox.processes.kill(handle.pid)).toBe(true);
     expect(handle.exitCode).toBe(143);
@@ -205,7 +207,11 @@ describe.skipIf(!hasSetsid)('Agent37ProcessManager (local shell)', () => {
   it('finishes running processes when the sandbox is stopped or destroyed', async () => {
     const fake = new FakeAgent37();
     const client = new Agent37Client({ apiKey: 'k', fetch: fake.fetch });
-    const sandbox = new Agent37Sandbox({ client, stopMode: 'stop', processes: { quickWaitMs: 100, pollWindowMs: 200 } });
+    const sandbox = new Agent37Sandbox({
+      client,
+      stopMode: 'stop',
+      processes: { quickWaitMs: 100, pollWindowMs: 200 },
+    });
     const handle = await sandbox.processes.spawn('sleep 30');
     await sandbox._stop();
     expect((await handle.wait()).exitCode).toBe(137);

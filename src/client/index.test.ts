@@ -85,9 +85,12 @@ describe('Agent37Client', () => {
 
     const detailFetch = vi.fn(
       async () =>
-        new Response(JSON.stringify({ error: { code: 'provisioning_failed', message: 'boom', detail: 'tail of log' } }), {
-          status: 502,
-        }),
+        new Response(
+          JSON.stringify({ error: { code: 'provisioning_failed', message: 'boom', detail: 'tail of log' } }),
+          {
+            status: 502,
+          },
+        ),
     );
     const detailed = await new Agent37Client({ apiKey: 'k', fetch: detailFetch as typeof fetch })
       .createInstance()
@@ -105,7 +108,12 @@ describe('Agent37Client', () => {
   it('retries documented transient errors on idempotent calls', async () => {
     const { fake, client } = makeClient();
     const instance = fake.seed();
-    fake.fail(c => c.method === 'POST' && c.path.endsWith('/start'), 409, { code: 'try_again', message: 'checkpointing' }, 2);
+    fake.fail(
+      c => c.method === 'POST' && c.path.endsWith('/start'),
+      409,
+      { code: 'try_again', message: 'checkpointing' },
+      2,
+    );
     const ack = await client.startInstance(instance.id);
     expect(ack.status).toBe('running');
     expect(fake.callsTo('POST', /\/start$/)).toHaveLength(3);

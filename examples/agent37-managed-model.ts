@@ -26,7 +26,10 @@ interface ToolPart {
 
 /** The base64 data of an image part, in the shapes AI SDK versions serialize tool output with. */
 function imageData(part: ToolPart): string | undefined {
-  const isImage = part.type === 'image-data' || part.type === 'media' || (part.type === 'file' && part.mediaType?.startsWith('image/'));
+  const isImage =
+    part.type === 'image-data' ||
+    part.type === 'media' ||
+    (part.type === 'file' && part.mediaType?.startsWith('image/'));
   if (!isImage) return undefined;
   return typeof part.data === 'string' ? part.data : part.data?.data;
 }
@@ -37,7 +40,8 @@ type ChatModel = ReturnType<ReturnType<typeof createOpenAICompatible>['chatModel
 export function agent37ManagedModel(modelId = 'default', options: { keepScreenshots?: number } = {}): ChatModel {
   const baseURL = process.env.AGENT37_LLM_PROXY_URL;
   const apiKey = process.env.AGENT37_MANAGED_TOKEN;
-  if (!baseURL || !apiKey) throw new Error('AGENT37_LLM_PROXY_URL and AGENT37_MANAGED_TOKEN are only set inside Agent37 instances');
+  if (!baseURL || !apiKey)
+    throw new Error('AGENT37_LLM_PROXY_URL and AGENT37_MANAGED_TOKEN are only set inside Agent37 instances');
   const keep = options.keepScreenshots ?? 3;
   const provider = createOpenAICompatible({
     name: 'agent37',
@@ -76,7 +80,10 @@ export function liftToolImages(messages: ChatMessage[], keep: number): ChatMessa
   let pending: Array<{ type: 'image_url'; image_url: { url: string } }> = [];
   const flush = () => {
     if (pending.length === 0) return;
-    out.push({ role: 'user', content: [{ type: 'text', text: 'Screenshots returned by the tool calls above:' }, ...pending] });
+    out.push({
+      role: 'user',
+      content: [{ type: 'text', text: 'Screenshots returned by the tool calls above:' }, ...pending],
+    });
     pending = [];
   };
   for (const message of messages) {

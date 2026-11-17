@@ -16,28 +16,12 @@
     "module": "Preserve",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "lib": [
-      "ES2023",
-      "DOM"
-    ],
-    "types": [
-      "node"
-    ],
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
     "paths": {
-      "@mastra/agent37": [
-        "./src/index.ts"
-      ]
+      "@mastra/agent37": ["./src/index.ts"]
     }
   },
-  "include": [
-    "src/**/*",
-    "examples/**/*",
-    "scripts/**/*",
-    "tsdown.config.ts",
-    "vitest.config.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*", "examples/**/*", "scripts/**/*", "tsdown.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }

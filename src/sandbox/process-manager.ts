@@ -112,7 +112,10 @@ export class Agent37ProcessHandle extends ProcessHandle {
    */
   applyFrame(frame: ProcessFrame, stdoutFrom = 0, stderrFrom = 0): boolean {
     if (frame.missing) {
-      this.#finish(LOST_EXIT_CODE, 'process state was lost (the instance was rebooted or the process directory removed)');
+      this.#finish(
+        LOST_EXIT_CODE,
+        'process state was lost (the instance was rebooted or the process directory removed)',
+      );
       return false;
     }
     const stdout = frame.stdout.subarray(Math.max(0, this.#stdoutOffset - stdoutFrom));
@@ -135,7 +138,8 @@ export class Agent37ProcessHandle extends ProcessHandle {
     }
     if (!frame.alive) {
       this.#lostFrames += 1;
-      if (this.#lostFrames >= LOST_FRAMES) this.#finish(LOST_EXIT_CODE, 'process exited without reporting an exit code');
+      if (this.#lostFrames >= LOST_FRAMES)
+        this.#finish(LOST_EXIT_CODE, 'process exited without reporting an exit code');
     } else {
       this.#lostFrames = 0;
     }
@@ -264,7 +268,8 @@ export class Agent37ProcessHandle extends ProcessHandle {
 
   #assertStdinResult(exitCode: number, stderr: string, action: string): void {
     if (exitCode === 0) return;
-    if (exitCode === SCRIPT_EXIT.notRunning) throw new Error(`Cannot ${action} process ${this.pid}: it has already exited`);
+    if (exitCode === SCRIPT_EXIT.notRunning)
+      throw new Error(`Cannot ${action} process ${this.pid}: it has already exited`);
     if (exitCode === SCRIPT_EXIT.noStdin) {
       throw new Error(`Cannot ${action} process ${this.pid}: it was spawned with stdinMode 'ignore'`);
     }
@@ -302,7 +307,9 @@ export class Agent37ProcessManager extends SandboxProcessManager<Agent37Sandbox>
       { name: `mastra-spawn-${handleId}` },
     );
     if (result.exit_code !== 0) {
-      throw new Error(`Failed to spawn process (exit ${result.exit_code}): ${result.stderr.trim() || result.stdout.trim()}`);
+      throw new Error(
+        `Failed to spawn process (exit ${result.exit_code}): ${result.stderr.trim() || result.stdout.trim()}`,
+      );
     }
     const handle = new Agent37ProcessHandle(this, handleId, parseFrame(result.stdout), startTime, options);
     this._tracked.set(handle.pid, handle);

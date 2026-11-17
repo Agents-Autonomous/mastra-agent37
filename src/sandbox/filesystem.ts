@@ -111,7 +111,11 @@ export class Agent37Filesystem extends MastraFilesystem {
         `[ -r "$f" ] || exit ${FS_EXIT.permission}`,
       ],
       abs,
-      { notFound: () => new FileNotFoundError(path), isDirectory: () => new IsDirectoryError(path), permission: () => new PermissionError(path, 'read') },
+      {
+        notFound: () => new FileNotFoundError(path),
+        isDirectory: () => new IsDirectoryError(path),
+        permission: () => new PermissionError(path, 'read'),
+      },
     );
     return options?.encoding ? buffer.toString(options.encoding) : buffer;
   }
@@ -125,11 +129,7 @@ export class Agent37Filesystem extends MastraFilesystem {
     const abs = toAbsolute(path);
     const stdout = await this.#command(
       'stat',
-      [
-        `f=${shellQuote(abs)}`,
-        `[ -e "$f" ] || exit ${FS_EXIT.notFound}`,
-        `stat -L -c '%F|%s|%W|%Y' "$f"`,
-      ].join('\n'),
+      [`f=${shellQuote(abs)}`, `[ -e "$f" ] || exit ${FS_EXIT.notFound}`, `stat -L -c '%F|%s|%W|%Y' "$f"`].join('\n'),
       path,
       { notFound: () => new FileNotFoundError(path) },
     );
@@ -376,7 +376,12 @@ export class Agent37Filesystem extends MastraFilesystem {
     removeAfter = false,
   ): Promise<Buffer> {
     const first = await this.#sandbox.runScript(
-      [...prelude, `printf %s "$f" | base64 | tr -d '\\n'; echo`, 'wc -c <"$f"', `head -c ${READ_CHUNK_BYTES} "$f" | base64 | tr -d '\\n'; echo`].join('\n'),
+      [
+        ...prelude,
+        `printf %s "$f" | base64 | tr -d '\\n'; echo`,
+        'wc -c <"$f"',
+        `head -c ${READ_CHUNK_BYTES} "$f" | base64 | tr -d '\\n'; echo`,
+      ].join('\n'),
     );
     if (first.exit_code !== 0) throw this.#toError(operation, path, first.exit_code, first.stderr, errors);
     const [encodedPath = '', sizeLine = '0', data = ''] = first.stdout.split('\n');

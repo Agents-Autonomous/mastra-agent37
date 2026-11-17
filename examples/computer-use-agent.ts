@@ -52,7 +52,8 @@ try {
       maxSteps: 30,
       onStepFinish: step => {
         for (const call of step.toolCalls ?? []) {
-          const { toolName, args } = (call as { payload?: { toolName: string; args: unknown } }).payload ?? (call as any);
+          const { toolName, args } =
+            (call as { payload?: { toolName: string; args: unknown } }).payload ?? (call as any);
           console.log('tool:', toolName, JSON.stringify(args ?? {}).slice(0, 120));
         }
       },

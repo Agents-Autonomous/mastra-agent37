@@ -44,7 +44,11 @@ export async function localExec(params: Agent37ExecParams): Promise<Agent37ExecR
   try {
     return await new Promise(resolve => {
       execFile('sh', [script], { maxBuffer: 64 * 1024 * 1024, encoding: 'utf-8' }, (error, stdout, stderr) => {
-        const code = error ? (typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : 1) : 0;
+        const code = error
+          ? typeof (error as { code?: unknown }).code === 'number'
+            ? (error as { code: number }).code
+            : 1
+          : 0;
         resolve({ exit_code: code, stdout, stderr, truncated: false });
       });
     });
@@ -141,7 +145,10 @@ export class FakeAgent37 {
     const [, id, action] = match;
     const instance = this.instances.get(id!);
     if (!instance || instance.status === 'deleted') {
-      return json(404, action === 'exec' ? { error: 'not_found' } : { error: { code: 'not_found', message: 'No such instance' } });
+      return json(
+        404,
+        action === 'exec' ? { error: 'not_found' } : { error: { code: 'not_found', message: 'No such instance' } },
+      );
     }
 
     switch (`${method} ${action ?? ''}`) {

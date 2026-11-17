@@ -212,7 +212,14 @@ export function parseFrame(output: string): ProcessFrame {
   if (headerIndex === -1) throw new Error(`Unexpected process frame: ${output.slice(0, 200)}`);
   const fields = lines[headerIndex]!.split(' ');
   if (fields[2] === 'missing') {
-    return { missing: true, alive: false, stdoutSize: 0, stderrSize: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+    return {
+      missing: true,
+      alive: false,
+      stdoutSize: 0,
+      stderrSize: 0,
+      stdout: Buffer.alloc(0),
+      stderr: Buffer.alloc(0),
+    };
   }
   const [, pid, exit, stdoutSize, stderrSize, alive] = fields;
   return {

@@ -51,7 +51,9 @@ describe('Agent37Filesystem', () => {
     it('round-trips text and binary content, creating parents', async () => {
       await sandbox.filesystem.writeFile(p('a/b/c.txt'), "hello 'world' $HOME \\n é");
       expect(readFileSync(p('a/b/c.txt'), 'utf-8')).toBe("hello 'world' $HOME \\n é");
-      expect(await sandbox.filesystem.readFile(p('a/b/c.txt'), { encoding: 'utf-8' })).toBe("hello 'world' $HOME \\n é");
+      expect(await sandbox.filesystem.readFile(p('a/b/c.txt'), { encoding: 'utf-8' })).toBe(
+        "hello 'world' $HOME \\n é",
+      );
 
       const bytes = Uint8Array.from({ length: 256 }, (_, i) => i);
       await sandbox.filesystem.writeFile(p('bin'), bytes);
@@ -91,7 +93,9 @@ describe('Agent37Filesystem', () => {
 
     it('honors overwrite: false and recursive: false', async () => {
       writeFileSync(p('x'), 'keep');
-      await expect(sandbox.filesystem.writeFile(p('x'), 'new', { overwrite: false })).rejects.toBeInstanceOf(FileExistsError);
+      await expect(sandbox.filesystem.writeFile(p('x'), 'new', { overwrite: false })).rejects.toBeInstanceOf(
+        FileExistsError,
+      );
       expect(readFileSync(p('x'), 'utf-8')).toBe('keep');
       await sandbox.filesystem.writeFile(p('y'), 'fresh', { overwrite: false });
       expect(readFileSync(p('y'), 'utf-8')).toBe('fresh');
@@ -131,7 +135,12 @@ describe('Agent37Filesystem', () => {
 
     it('cleans up the temp file when a chunked upload fails', async () => {
       const big = Buffer.alloc(WRITE_CHUNK_BYTES * 2 + 1, 1);
-      fake.fail(c => c.path.endsWith('/exec') && String(c.body.command).includes('>>'), 400, { code: 'invalid_request', message: 'boom' }, 1);
+      fake.fail(
+        c => c.path.endsWith('/exec') && String(c.body.command).includes('>>'),
+        400,
+        { code: 'invalid_request', message: 'boom' },
+        1,
+      );
       await expect(sandbox.filesystem.writeFile(p('fail.bin'), big)).rejects.toThrow();
       expect((await sandbox.filesystem.readdir(dir)).map(e => e.name)).toEqual([]);
     }, 60_000);
@@ -153,7 +162,13 @@ describe('Agent37Filesystem', () => {
       expect(await sandbox.filesystem.exists(p('nope'))).toBe(false);
 
       const file = await sandbox.filesystem.stat(p('f.json'));
-      expect(file).toMatchObject({ name: 'f.json', path: p('f.json'), type: 'file', size: 7, mimeType: 'application/json' });
+      expect(file).toMatchObject({
+        name: 'f.json',
+        path: p('f.json'),
+        type: 'file',
+        size: 7,
+        mimeType: 'application/json',
+      });
       expect(file.modifiedAt).toBeInstanceOf(Date);
       expect(Math.abs(file.modifiedAt.getTime() - Date.now())).toBeLessThan(60_000);
 
@@ -236,7 +251,9 @@ describe('Agent37Filesystem', () => {
       await sandbox.filesystem.copyFile(p('a'), p('b'));
       expect(readFileSync(p('b'), 'utf-8')).toBe('A');
       writeFileSync(p('b'), 'B');
-      await expect(sandbox.filesystem.copyFile(p('a'), p('b'), { overwrite: false })).rejects.toBeInstanceOf(FileExistsError);
+      await expect(sandbox.filesystem.copyFile(p('a'), p('b'), { overwrite: false })).rejects.toBeInstanceOf(
+        FileExistsError,
+      );
       expect(readFileSync(p('b'), 'utf-8')).toBe('B');
       await sandbox.filesystem.copyFile(p('a'), p('c'), { overwrite: false });
       expect(readFileSync(p('c'), 'utf-8')).toBe('A');
@@ -275,7 +292,9 @@ describe('Agent37Filesystem', () => {
       await sandbox.filesystem.mkdir(p('x/y/z'));
       expect(statSync(p('x/y/z')).isDirectory()).toBe(true);
       await sandbox.filesystem.mkdir(p('x/y/z'));
-      await expect(sandbox.filesystem.mkdir(p('q/r'), { recursive: false })).rejects.toBeInstanceOf(DirectoryNotFoundError);
+      await expect(sandbox.filesystem.mkdir(p('q/r'), { recursive: false })).rejects.toBeInstanceOf(
+        DirectoryNotFoundError,
+      );
       await sandbox.filesystem.mkdir(p('q'), { recursive: false });
       writeFileSync(p('file'), '');
       await expect(sandbox.filesystem.mkdir(p('file'))).rejects.toBeInstanceOf(FileExistsError);
@@ -309,6 +328,8 @@ describe('Agent37Filesystem', () => {
   it('wraps unmapped failures with the operation, path, and stderr', async () => {
     await sandbox.start();
     fake.execHandler = () => ({ exit_code: 1, stdout: '', stderr: 'disk on fire', truncated: false });
-    await expect(sandbox.filesystem.deleteFile(p('f'))).rejects.toThrow(/deleteFile .*f failed \(exit 1\): disk on fire/);
+    await expect(sandbox.filesystem.deleteFile(p('f'))).rejects.toThrow(
+      /deleteFile .*f failed \(exit 1\): disk on fire/,
+    );
   });
 });

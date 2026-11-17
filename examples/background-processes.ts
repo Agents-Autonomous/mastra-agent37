@@ -25,7 +25,9 @@ try {
   let body = '';
   for (let attempt = 0; attempt < 15 && !body.startsWith('served'); attempt++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    body = await fetch(url!).then(r => r.text()).catch(() => '');
+    body = await fetch(url!)
+      .then(r => r.text())
+      .catch(() => '');
   }
   console.log('Fetched:', body);
 

@@ -58,7 +58,10 @@ describe.skipIf(!hasKey)('Agent37Sandbox (live)', () => {
   });
 
   it('runs commands with exit codes, stderr, env, and cwd', async () => {
-    const ok = await sandbox.executeCommand!('echo "$GREETING from $(pwd)"', [], { env: { GREETING: 'hello' }, cwd: '/tmp' });
+    const ok = await sandbox.executeCommand!('echo "$GREETING from $(pwd)"', [], {
+      env: { GREETING: 'hello' },
+      cwd: '/tmp',
+    });
     expect(ok).toMatchObject({ success: true, exitCode: 0, stdout: 'hello from /tmp\n' });
     const failed = await sandbox.executeCommand!('echo oops >&2; exit 3');
     expect(failed).toMatchObject({ success: false, exitCode: 3, stderr: 'oops\n' });
@@ -119,7 +122,9 @@ describe.skipIf(!hasKey)('Agent37Sandbox (live)', () => {
       let body = '';
       for (let attempt = 0; attempt < 15 && body !== 'agent37 ok'; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        body = await fetch(url!).then(r => r.text()).catch(() => '');
+        body = await fetch(url!)
+          .then(r => r.text())
+          .catch(() => '');
       }
       expect(body).toBe('agent37 ok');
     } finally {

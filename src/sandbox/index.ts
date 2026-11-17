@@ -166,8 +166,8 @@ export interface RunScriptOptions {
  * @example Computer use
  * ```typescript
  * const sandbox = new Agent37Sandbox({ computer: true }); // agent37-ubuntu VM with XFCE
- * await sandbox.start();
- * const { data } = await sandbox.computer.screenshot();
+ * await sandbox._start();
+ * const { data } = await sandbox.computer!.screenshot();
  * ```
  */
 // MastraSandbox always installs executeCommand when a process manager is present (as it is here), so the type says so.
@@ -312,7 +312,9 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
     const instance = await this.lookupByMetadata();
     if (!instance) return undefined;
     if (instance.status === 'failed') {
-      this.logger.debug(LOG_PREFIX + ' Instance ' + instance.id + ' for ' + this.id + ' failed; deleting and creating fresh');
+      this.logger.debug(
+        LOG_PREFIX + ' Instance ' + instance.id + ' for ' + this.id + ' failed; deleting and creating fresh',
+      );
       await this._client.deleteInstance(instance.id).catch(() => {});
       return undefined;
     }
@@ -414,13 +416,19 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
 
   getInstructions(): string {
     const instance = this._instance;
-    const isVm = (instance?.type ?? this.instanceType) === 'vm' || (instance?.type ?? this.instanceType) === 'performance';
+    const isVm =
+      (instance?.type ?? this.instanceType) === 'vm' || (instance?.type ?? this.instanceType) === 'performance';
     const parts = [
-      'Agent37 Cloud ' + (isVm ? 'Linux VM' : 'Linux sandbox') + ' (template ' + (instance?.template ?? this.template) + ').',
+      'Agent37 Cloud ' +
+        (isVm ? 'Linux VM' : 'Linux sandbox') +
+        ' (template ' +
+        (instance?.template ?? this.template) +
+        ').',
       'Commands run through sh as ' + (this.user ?? "the image's default user") + '.',
     ];
     if (this.workingDirectory) parts.push('Default working directory: ' + this.workingDirectory + '.');
-    if (instance?.mount_path) parts.push('Persistent disk: ' + instance.mount_path + ' (survives restarts and updates).');
+    if (instance?.mount_path)
+      parts.push('Persistent disk: ' + instance.mount_path + ' (survives restarts and updates).');
     parts.push('Command timeout: ' + Math.ceil(this.timeout / 1000) + 's.');
     if (this.computer) parts.push('A Linux desktop (X11) is available through the computer tools.');
     if (instance?.network === 'deny-all') parts.push('Network access is blocked.');
@@ -575,7 +583,9 @@ export class Agent37Sandbox extends MastraSandbox<Agent37Instance> {
         }
         case 'deleting':
         case 'deleted':
-          throw new SandboxError('Agent37 instance ' + current.id + ' was deleted', 'NOT_FOUND', { instanceId: current.id });
+          throw new SandboxError('Agent37 instance ' + current.id + ' was deleted', 'NOT_FOUND', {
+            instanceId: current.id,
+          });
         default:
           // provisioning, starting, restarting, updating, waking, stopping: wait for it to settle.
           await sleep(2000);

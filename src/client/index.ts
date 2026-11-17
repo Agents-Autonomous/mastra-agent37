@@ -189,9 +189,17 @@ export class Agent37Client {
    * which makes the resend return the first run's result instead of running
    * the command twice.
    */
-  exec(id: string, params: Agent37ExecParams & { background: true }, signal?: AbortSignal): Promise<Agent37BackgroundExecResult>;
+  exec(
+    id: string,
+    params: Agent37ExecParams & { background: true },
+    signal?: AbortSignal,
+  ): Promise<Agent37BackgroundExecResult>;
   exec(id: string, params: Agent37ExecParams, signal?: AbortSignal): Promise<Agent37ExecResult>;
-  exec(id: string, params: Agent37ExecParams, signal?: AbortSignal): Promise<Agent37ExecResult | Agent37BackgroundExecResult> {
+  exec(
+    id: string,
+    params: Agent37ExecParams,
+    signal?: AbortSignal,
+  ): Promise<Agent37ExecResult | Agent37BackgroundExecResult> {
     return this.request('POST', `/v1/instances/${encodeURIComponent(id)}/exec`, {
       body: params,
       execPlane: true,
@@ -241,7 +249,9 @@ export class Agent37Client {
 
 function isNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return error.name === 'TypeError' || /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up/i.test(error.message);
+  return (
+    error.name === 'TypeError' || /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up/i.test(error.message)
+  );
 }
 
 export { Agent37ApiError } from './errors';

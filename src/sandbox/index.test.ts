@@ -150,7 +150,10 @@ describe('Agent37Sandbox', () => {
 
     it('propagates lookup errors instead of creating a duplicate', async () => {
       const { fake, sandbox } = setup();
-      fake.fail(c => c.path === '/instances' && c.method === 'GET', 401, { code: 'invalid_api_key', message: 'bad key' });
+      fake.fail(c => c.path === '/instances' && c.method === 'GET', 401, {
+        code: 'invalid_api_key',
+        message: 'bad key',
+      });
       await expect(sandbox.start()).rejects.toMatchObject({ code: 'invalid_api_key' });
       expect(fake.callsTo('POST', /^\/instances$/)).toHaveLength(0);
     });
@@ -422,7 +425,7 @@ describe('Agent37Sandbox', () => {
         { path: '/tmp/a.sh', content: 'echo hi', mode: 0o755 },
         { path: '/tmp/b.txt', content: Buffer.from('b') },
       ]);
-      expect(commands.some(c => c.includes("chmod 755 \"$f\""))).toBe(true);
+      expect(commands.some(c => c.includes('chmod 755 "$f"'))).toBe(true);
       expect(commands.filter(c => c.includes('base64 -d'))).toHaveLength(2);
     });
 

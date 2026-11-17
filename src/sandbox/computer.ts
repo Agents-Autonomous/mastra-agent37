@@ -9,12 +9,7 @@
  * are installed with apt on first use when the image lacks them.
  */
 
-import type {
-  ComputerPosition,
-  ComputerScreenSize,
-  ComputerScreenshot,
-  SandboxComputer,
-} from '@mastra/core/workspace';
+import type { ComputerPosition, ComputerScreenSize, ComputerScreenshot, SandboxComputer } from '@mastra/core/workspace';
 
 import type { Agent37ExecResult } from '../client';
 import { randomId, shellQuote } from '../utils/shell';
@@ -183,7 +178,8 @@ export class Agent37Computer implements SandboxComputer {
     const first = await this.#run(
       [
         'mkdir -p ' + STATE_DIR + '; f=' + shellQuote(file),
-        'scrot -z "$f" >/dev/null 2>&1 || import -window root "$f" >/dev/null 2>&1 || exit ' + COMPUTER_EXIT.captureFailed,
+        'scrot -z "$f" >/dev/null 2>&1 || import -window root "$f" >/dev/null 2>&1 || exit ' +
+          COMPUTER_EXIT.captureFailed,
         's=$(wc -c <"$f"); echo "$s"',
         'head -c ' + SCREENSHOT_CHUNK_BYTES + ' "$f" | base64 | tr -d \'\\n\'; echo',
         '[ "$s" -le ' + SCREENSHOT_CHUNK_BYTES + ' ] && rm -f "$f"; exit 0',
@@ -196,11 +192,18 @@ export class Agent37Computer implements SandboxComputer {
     try {
       while (offset < size) {
         const next = await this.#sandbox.runScript(
-          'tail -c +' + (offset + 1) + ' ' + shellQuote(file) + ' | head -c ' + SCREENSHOT_CHUNK_BYTES + " | base64 | tr -d '\\n'",
+          'tail -c +' +
+            (offset + 1) +
+            ' ' +
+            shellQuote(file) +
+            ' | head -c ' +
+            SCREENSHOT_CHUNK_BYTES +
+            " | base64 | tr -d '\\n'",
           { user: 'root' },
         );
         const chunk = Buffer.from(next.stdout.trim(), 'base64');
-        if (next.exit_code !== 0 || chunk.length === 0) throw new Error('Failed to read screenshot: ' + next.stderr.trim());
+        if (next.exit_code !== 0 || chunk.length === 0)
+          throw new Error('Failed to read screenshot: ' + next.stderr.trim());
         chunks.push(chunk);
         offset += chunk.length;
       }
@@ -237,9 +240,18 @@ export class Agent37Computer implements SandboxComputer {
     const midY = px((from.y + to.y) / 2);
     await this.#xdotool(
       [
-        'mousemove', px(from.x), px(from.y), 'mousedown 1 sleep 0.1',
-        'mousemove', midX, midY, 'sleep 0.05',
-        'mousemove', px(to.x), px(to.y), 'sleep 0.1 mouseup 1',
+        'mousemove',
+        px(from.x),
+        px(from.y),
+        'mousedown 1 sleep 0.1',
+        'mousemove',
+        midX,
+        midY,
+        'sleep 0.05',
+        'mousemove',
+        px(to.x),
+        px(to.y),
+        'sleep 0.1 mouseup 1',
       ].join(' '),
     );
   }
@@ -253,7 +265,11 @@ export class Agent37Computer implements SandboxComputer {
     if (!text) return;
     const encoded = shellQuote(Buffer.from(text, 'utf-8').toString('base64'));
     await this.#run(
-      'printf %s ' + encoded + ' | base64 -d | xdotool type --clearmodifiers --delay ' + this.#options.typingDelayMs + ' --file -',
+      'printf %s ' +
+        encoded +
+        ' | base64 -d | xdotool type --clearmodifiers --delay ' +
+        this.#options.typingDelayMs +
+        ' --file -',
     );
   }
 
@@ -318,7 +334,9 @@ export class Agent37Computer implements SandboxComputer {
     }
     // The desktop may have restarted on another display: re-detect on the next call.
     this.reset();
-    throw new Error('Desktop command failed (exit ' + result.exit_code + '): ' + (result.stderr || result.stdout).trim());
+    throw new Error(
+      'Desktop command failed (exit ' + result.exit_code + '): ' + (result.stderr || result.stdout).trim(),
+    );
   }
 
   async #setup(): Promise<DisplayContext> {
@@ -327,7 +345,8 @@ export class Agent37Computer implements SandboxComputer {
       ? [
           '  log=' + STATE_DIR + '/apt.log',
           '  if command -v apt-get >/dev/null 2>&1; then',
-          '    (export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends $need) >"$log" 2>&1 || ' + fail(COMPUTER_EXIT.installFailed),
+          '    (export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends $need) >"$log" 2>&1 || ' +
+            fail(COMPUTER_EXIT.installFailed),
           '  elif command -v apk >/dev/null 2>&1; then',
           '    apk add --no-cache $need >"$log" 2>&1 || ' + fail(COMPUTER_EXIT.installFailed),
           '  else',
@@ -346,7 +365,9 @@ export class Agent37Computer implements SandboxComputer {
       this.#options.display
         ? 'displays=' + shellQuote(this.#options.display)
         : 'displays=$(for s in /tmp/.X11-unix/X*; do [ -e "$s" ] && echo ":${s##*/X}"; done)',
-      '[ -n "$displays" ] || { echo "no X display found under /tmp/.X11-unix" >&2; exit ' + COMPUTER_EXIT.noDisplay + '; }',
+      '[ -n "$displays" ] || { echo "no X display found under /tmp/.X11-unix" >&2; exit ' +
+        COMPUTER_EXIT.noDisplay +
+        '; }',
       'for d in $displays; do',
       '  if DISPLAY="$d" xdotool getdisplaygeometry >/dev/null 2>&1; then echo "DISPLAY=$d"; echo "XAUTHORITY="; exit 0; fi',
       '  for xa in /root/.Xauthority /home/*/.Xauthority /run/user/*/gdm/Xauthority; do',
@@ -364,7 +385,9 @@ export class Agent37Computer implements SandboxComputer {
           : result.exit_code === COMPUTER_EXIT.installFailed
             ? ' Installing xdotool and scrot needs outbound network access; bake them into a custom image for network-restricted instances.'
             : '';
-      throw new Error('Agent37 desktop is not available (exit ' + result.exit_code + '): ' + result.stderr.trim() + '.' + hint);
+      throw new Error(
+        'Agent37 desktop is not available (exit ' + result.exit_code + '): ' + result.stderr.trim() + '.' + hint,
+      );
     }
     const display = /DISPLAY=(\S+)/.exec(result.stdout)?.[1];
     const xauthority = /XAUTHORITY=(\S*)/.exec(result.stdout)?.[1];
