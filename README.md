@@ -1,13 +1,13 @@
-# @mastra/agent37
+# @agentsautonomous.ai/mastra-agent37
 
-[Agent37 Cloud](https://www.agent37.com) sandbox provider for [Mastra](https://mastra.ai) workspaces.
+A community [Agent37 Cloud](https://www.agent37.com) sandbox provider for [Mastra](https://mastra.ai) workspaces, by [Agents Autonomous](https://github.com/Agents-Autonomous). It is not an official Mastra package and is not maintained by the Mastra team.
 
 Give a Mastra agent its own Linux machine on Agent37: shell commands with streamed output, background processes with stdin, a full filesystem, public URLs for ports, and computer use (screenshot, mouse, keyboard) on a real XFCE desktop. Instances sleep when idle and are found again by id, so an agent's workspace survives restarts and process boundaries.
 
 ```ts
 import { Agent } from '@mastra/core/agent';
 import { Workspace } from '@mastra/core/workspace';
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 const sandbox = new Agent37Sandbox({ id: 'my-project' });
 const agent = new Agent({
@@ -39,9 +39,9 @@ const agent = new Agent({
 ## Installation
 
 ```bash
-npm install @mastra/agent37 @mastra/core
+npm install @agentsautonomous.ai/mastra-agent37 @mastra/core
 # or
-pnpm add @mastra/agent37 @mastra/core
+pnpm add @agentsautonomous.ai/mastra-agent37 @mastra/core
 ```
 
 Requires Node.js 22.13 or later and `@mastra/core` 1.83 or later.
@@ -60,7 +60,7 @@ The provider reads the key from the environment by default; pass `apiKey` to ove
 
 ```ts
 import { Workspace } from '@mastra/core/workspace';
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 const sandbox = new Agent37Sandbox({ id: 'quick-start' });
 const workspace = new Workspace({ sandbox, filesystem: sandbox.filesystem });
@@ -83,7 +83,7 @@ Passing `sandbox.filesystem` as the workspace filesystem gives the agent Mastra'
 ```ts
 import { Agent } from '@mastra/core/agent';
 import { Workspace } from '@mastra/core/workspace';
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 const sandbox = new Agent37Sandbox({ computer: true }); // agent37-ubuntu VM with XFCE and Firefox
 const workspace = new Workspace({ sandbox });
@@ -355,6 +355,8 @@ AGENT37_API_KEY=sk_live_... pnpm test   # live integration suite (creates and de
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The package publishes publicly under the `@agentsautonomous.ai` npm scope, which has to exist on npm before the first release.
 
 ## License
 

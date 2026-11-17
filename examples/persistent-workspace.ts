@@ -6,7 +6,7 @@
  *   AGENT37_API_KEY=sk_live_... pnpm example examples/persistent-workspace.ts
  *   AGENT37_API_KEY=sk_live_... pnpm example examples/persistent-workspace.ts --destroy
  */
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 const id = 'mastra-agent37-example-persistent';
 const sandbox = new Agent37Sandbox({ id, metadata: { mastra_test: '1' } });

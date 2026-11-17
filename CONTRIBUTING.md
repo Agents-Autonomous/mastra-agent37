@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `@mastra/agent37`.
+Thanks for helping improve `@agentsautonomous.ai/mastra-agent37`.
 
 ## Setup
 

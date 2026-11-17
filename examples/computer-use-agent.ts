@@ -13,7 +13,7 @@
  */
 import { Agent } from '@mastra/core/agent';
 import { Workspace } from '@mastra/core/workspace';
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 import { agent37ManagedModel } from './agent37-managed-model';
 

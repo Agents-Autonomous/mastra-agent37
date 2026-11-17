@@ -5,7 +5,7 @@
  *   AGENT37_API_KEY=sk_live_... pnpm example examples/basic-commands.ts
  */
 import { Workspace } from '@mastra/core/workspace';
-import { Agent37Sandbox } from '@mastra/agent37';
+import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
 
 const sandbox = new Agent37Sandbox({
   id: 'mastra-agent37-example-basic-' + Date.now().toString(36),

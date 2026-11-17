@@ -1,7 +1,16 @@
 {
-  "name": "@mastra/agent37",
+  "name": "@agentsautonomous.ai/mastra-agent37",
   "version": "0.1.0",
-  "description": "Agent37 Cloud sandbox provider for Mastra workspaces, with computer use on a full Linux desktop",
+  "description": "Community Agent37 Cloud sandbox provider for Mastra workspaces, with computer use on a full Linux desktop",
+  "author": "Agents Autonomous",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agents-Autonomous/mastra-agent37.git"
+  },
+  "homepage": "https://github.com/Agents-Autonomous/mastra-agent37#readme",
+  "bugs": {
+    "url": "https://github.com/Agents-Autonomous/mastra-agent37/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -64,6 +73,9 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22.13.0"
   },

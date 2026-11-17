@@ -1,5 +1,5 @@
 /**
- * @mastra/agent37: Agent37 Cloud sandbox provider for Mastra workspaces.
+ * @agentsautonomous.ai/mastra-agent37: a community Agent37 Cloud sandbox provider for Mastra workspaces, by Agents Autonomous.
  */
 
 export { Agent37Sandbox, SANDBOX_ID_METADATA_KEY, PROVIDER_METADATA_KEY } from './sandbox';

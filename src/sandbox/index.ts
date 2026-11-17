@@ -42,7 +42,7 @@ import { Agent37Filesystem } from './filesystem';
 import { Agent37ProcessManager } from './process-manager';
 import type { Agent37ProcessOptions } from './process-manager';
 
-const LOG_PREFIX = '[@mastra/agent37]';
+const LOG_PREFIX = '[@agentsautonomous.ai/mastra-agent37]';
 
 /** Metadata key that ties an Agent37 instance to a sandbox's logical id. */
 export const SANDBOX_ID_METADATA_KEY = 'mastra_sandbox_id';
@@ -159,7 +159,7 @@ export interface RunScriptOptions {
  * ```typescript
  * import { Agent } from '@mastra/core/agent';
  * import { Workspace } from '@mastra/core/workspace';
- * import { Agent37Sandbox } from '@mastra/agent37';
+ * import { Agent37Sandbox } from '@agentsautonomous.ai/mastra-agent37';
  *
  * const workspace = new Workspace({ sandbox: new Agent37Sandbox({ id: 'my-project' }) });
  * const agent = new Agent({ id: 'coder', name: 'Coder', model: 'anthropic/claude-sonnet-5-5', workspace });

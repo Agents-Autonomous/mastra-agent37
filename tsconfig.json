@@ -19,7 +19,7 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "paths": {
-      "@mastra/agent37": ["./src/index.ts"]
+      "@agentsautonomous.ai/mastra-agent37": ["./src/index.ts"]
     }
   },
   "include": ["src/**/*", "examples/**/*", "scripts/**/*", "tsdown.config.ts", "vitest.config.ts"],
